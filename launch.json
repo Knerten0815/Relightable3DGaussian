@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: gui.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/gui.py",
+            "args": [
+                "-m",
+                "output/NeRF_Syn/chair/neilf",
+                "-t",
+                "neilf"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}
