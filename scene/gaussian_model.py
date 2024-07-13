@@ -17,6 +17,19 @@ from bvh import RayTracer
 
 
 class GaussianModel:
+    
+    def modify_incidents(self, index):
+        if(self.default_incidents is None):
+            self.default_incidents = self._incidents_dc.clone()
+        
+        #print("INCIDENTS DC shape before modification : ", self._incidents_dc.shape)        
+        if(index == 0):
+            self._incidents_dc = self.default_incidents.clone()
+            return
+        
+        self._incidents_dc = self._incidents_rest[:, index, :].unsqueeze(1).clone()
+        
+        #print("INCIDENTS DC shape after modification  : ", self._incidents_dc.shape)
 
     def setup_functions(self):
         def build_covariance_from_scaling_rotation(scaling, scaling_modifier, rotation):
@@ -42,14 +55,15 @@ class GaussianModel:
             self.metallic_activation = torch.sigmoid
 
     def __init__(self, sh_degree: int, render_type='render'):
+        self.default_incidents = None
         self.render_type = render_type
         self.use_pbr = render_type in ['neilf']
         self.active_sh_degree = 0
         self.max_sh_degree = sh_degree
         self._xyz = torch.empty(0)
         self._normal = torch.empty(0)  # normal
-        self._shs_dc = torch.empty(0)  # output radiance
-        self._shs_rest = torch.empty(0)  # output radiance
+        self._shs_dc = torch.empty(0)  # output radiance                # Kev: what does shs_dc stand for? Spherical_HarmonicS_D?C?
+        self._shs_rest = torch.empty(0)  # output radiance              # Kev: whats the difference between shs_dc and shs_rest?
         self._scaling = torch.empty(0)
         self._rotation = torch.empty(0)
         self._opacity = torch.empty(0)
@@ -187,6 +201,8 @@ class GaussianModel:
         """SH"""
         shs_dc = self._shs_dc
         shs_rest = self._shs_rest
+        #print("SPHERICAL HARMONICS dc shape     : ", shs_dc.shape)
+        #print("SPHERICAL HARMONICS rest shape   : ", shs_rest.shape)
         return torch.cat((shs_dc, shs_rest), dim=1)
 
     @property
@@ -194,6 +210,8 @@ class GaussianModel:
         """SH"""
         incidents_dc = self._incidents_dc
         incidents_rest = self._incidents_rest
+        #print("INCIDENTS DC shape               : ", incidents_dc.shape)
+        #print("INCIDENTS REST shape             : ", incidents_rest.shape)
         return torch.cat((incidents_dc, incidents_rest), dim=1)
 
     @property

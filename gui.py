@@ -19,6 +19,8 @@ from scene.derect_light_sh import DirectLightEnv
 from utils.graphics_utils import focal2fov, hdr2ldr
 from scene.gamma_trans import LearningGammaTransform
 
+from scene.envmap import EnvLight
+
 
 def safe_normalize(x, eps=1e-20):
     return x / torch.sqrt(torch.clamp(torch.sum(x * x, -1, keepdim=True), min=eps))
@@ -302,11 +304,108 @@ class GUI:
 
             if self.debug:
                 dpg.set_value("_log_pose", str(self.cam.pose))
+        
+        # ------------------- light control -------------------
+        def callback_light_forward(sender, app_data):
+            
+            if not dpg.is_item_focused("_primary_window"):
+                return
+
+            light = self.render_kwargs['dict_params']['env_light']
+            
+            #Modify direct color
+            rgb = light.get_direct_color
+            rgb[0] += 0.1
+            rgb[1] += 0.1
+            rgb[2] += 0.1
+            light.set_direct_color(rgb)
+            
+            print(light.env_shs_dc)
+            print(light.env_shs_dc[0][0].shape)
+            print(light.env_shs_rest[0][12].shape)
+            
+            self.render_kwargs['dict_params']['env_light'] = light            
+            self.need_update = True
+        
+        def callback_light_backward(sender, app_data):
+            #if not dpg.is_item_focused("_primary_window"):
+            #    return
+            
+            gaussians = self.render_kwargs['pc']
+            #transform = gaussians.transform <- this is none
+            print(gaussians._incidents_dc.shape)
+            print(gaussians._incidents_rest.shape)
+        
+        def callback_light_left(sender, app_data):
+            if not dpg.is_item_focused("_primary_window"):
+                return
+            
+            print(" u r pressing LEFT key")
+        
+        def callback_light_right(sender, app_data):
+            if not dpg.is_item_focused("_primary_window"):
+                return
+            
+            print(" u r pressing RIGHT key")
+        
+        def callback_shs_index(sender, app_data):
+            if not dpg.is_item_focused("_primary_window"):
+                return
+            
+            self.need_update = False
+            
+            index = app_data-48     # key pressed
+            
+            light_transform = [
+            -0.6901941895484924,
+            -0.7236241698265076,
+            0.0,
+            0.7236241698265076,
+            -0.6901941895484924,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+            ]
+            
+            # light = EnvLight(path="env_map/composition.hdr", scale=1)#self.render_kwargs['dict_params']['env_light']
+            # print(light.transform)
+            # print(light)
+            # light_tensor = torch.tensor(light_transform, dtype=torch.float32, device="cuda").reshape(3, 3)
+            # print(light_tensor)
+            # light.transform = light_tensor
+            # print(light.transform)
+            
+            light = self.render_kwargs['dict_params']['env_light']
+            light.modify_shs(index)
+            self.render_kwargs['dict_params']['env_light'] = light
+            
+            gaussians = self.render_kwargs['pc']
+            gaussians.modify_incidents(index)
+            self.render_kwargs['pc'] = gaussians
+            
+            self.need_update = True
+        # -----------------------------------------------------
 
         with dpg.handler_registry():
             dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Left, callback=callback_camera_drag_rotate)
             dpg.add_mouse_wheel_handler(callback=callback_camera_wheel_scale)
             dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Right, callback=callback_camera_drag_pan)
+            dpg.add_key_down_handler(key=dpg.mvKey_Up, callback=callback_light_forward)
+            dpg.add_key_down_handler(key=dpg.mvKey_Down, callback=callback_light_backward)
+            dpg.add_key_down_handler(key=dpg.mvKey_Left, callback=callback_light_left)
+            dpg.add_key_down_handler(key=dpg.mvKey_Right, callback=callback_light_right)
+            dpg.add_key_press_handler(key=dpg.mvKey_0, callback=callback_shs_index)
+            dpg.add_key_press_handler(key=dpg.mvKey_1, callback=callback_shs_index)
+            dpg.add_key_press_handler(key=dpg.mvKey_2, callback=callback_shs_index)
+            dpg.add_key_press_handler(key=dpg.mvKey_2, callback=callback_shs_index)
+            dpg.add_key_press_handler(key=dpg.mvKey_3, callback=callback_shs_index)
+            dpg.add_key_press_handler(key=dpg.mvKey_4, callback=callback_shs_index)
+            dpg.add_key_press_handler(key=dpg.mvKey_5, callback=callback_shs_index)
+            dpg.add_key_press_handler(key=dpg.mvKey_6, callback=callback_shs_index)
+            dpg.add_key_press_handler(key=dpg.mvKey_7, callback=callback_shs_index)
+            dpg.add_key_press_handler(key=dpg.mvKey_8, callback=callback_shs_index)
+            dpg.add_key_press_handler(key=dpg.mvKey_9, callback=callback_shs_index)
 
         dpg.create_viewport(title='3D Gaussian Rendering Viewer', width=self.W, height=self.H, resizable=False)
 
@@ -350,6 +449,10 @@ if __name__ == '__main__':
     gaussians = GaussianModel(dataset.sh_degree, render_type=args.type)
     
     pbr_kwargs = dict()
+    
+    pbr_kwargs['light_transform'] = None
+    pbr_kwargs['incidents'] = None
+    
     pbr_kwargs['sample_num'] = pipe.sample_num
     checkpoints = glob.glob(os.path.join(args.model_path, "chkpnt*.pth"))
     if args.checkpoint is not None or len(checkpoints) > 0:
