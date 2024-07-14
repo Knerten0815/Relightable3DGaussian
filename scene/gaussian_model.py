@@ -57,7 +57,7 @@ class GaussianModel:
     def __init__(self, sh_degree: int, render_type='render'):
         self.default_incidents = None
         self.render_type = render_type
-        self.use_pbr = render_type in ['neilf']
+        self.use_pbr = render_type in ['neilf', 'neilf_composite_gui']
         self.active_sh_degree = 0
         self.max_sh_degree = sh_degree
         self._xyz = torch.empty(0)
@@ -201,8 +201,6 @@ class GaussianModel:
         """SH"""
         shs_dc = self._shs_dc
         shs_rest = self._shs_rest
-        #print("SPHERICAL HARMONICS dc shape     : ", shs_dc.shape)
-        #print("SPHERICAL HARMONICS rest shape   : ", shs_rest.shape)
         return torch.cat((shs_dc, shs_rest), dim=1)
 
     @property
@@ -210,8 +208,6 @@ class GaussianModel:
         """SH"""
         incidents_dc = self._incidents_dc
         incidents_rest = self._incidents_rest
-        #print("INCIDENTS DC shape               : ", incidents_dc.shape)
-        #print("INCIDENTS REST shape             : ", incidents_rest.shape)
         return torch.cat((incidents_dc, incidents_rest), dim=1)
 
     @property

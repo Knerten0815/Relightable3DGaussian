@@ -19,7 +19,10 @@ from scene.derect_light_sh import DirectLightEnv
 from utils.graphics_utils import focal2fov, hdr2ldr
 from scene.gamma_trans import LearningGammaTransform
 
+# ------------------- light control -------------------
 from scene.envmap import EnvLight
+import math
+# -----------------------------------------------------
 
 
 def safe_normalize(x, eps=1e-20):
@@ -112,6 +115,11 @@ class GUI:
         self.use_hdr2ldr = use_hdr2ldr
         
         self.cam = OrbitCamera(self.W, self.H, fovy=fovy * 180 / np.pi, rot=rot, translate=translate, center=center)
+        
+        # ------------------- light control -------------------
+        self.light = EnvLight(path="env_map/composition.hdr", scale=1)
+        self.rotation_value = 0
+        # -----------------------------------------------------
 
         self.render_buffer = np.zeros((self.W, self.H, 3), dtype=np.float32)
         self.resize_fn = torchvision.transforms.Resize((self.H, self.W), antialias=True)
@@ -304,51 +312,81 @@ class GUI:
 
             if self.debug:
                 dpg.set_value("_log_pose", str(self.cam.pose))
+
+
+        # ----------------------------------------------------- light control ------------------------------------------------------
+        def caculate_rotation_transform(t):
+            # Ensure t is within the range 0 < t < 1
+            if t <= 0 or t >= 1:
+                raise ValueError("t must be between 0 and 1 (exclusive)")
+            
+            # Map t to an angle theta
+            theta = 2 * math.pi * t
+            
+            # Calculate the elements of the rotation matrix
+            cos_theta = math.cos(theta)
+            sin_theta = math.sin(theta)
+            
+            # Construct the rotation matrix
+            transform = [
+                cos_theta, -sin_theta, 0.0,
+                sin_theta, cos_theta, 0.0,
+                0.0, 0.0, 1.0
+            ]
+            
+            return transform
+
+        def inverse_rotation(transform):
+            # Extract cos(theta) and sin(theta) from the transform matrix
+            cos_theta = transform[0]
+            sin_theta = transform[3]
+            
+            # Calculate the angle theta using atan2
+            theta = math.atan2(sin_theta, cos_theta)
+            
+            # Ensure theta is positive (0 to 2*pi)
+            if theta < 0:
+                theta += 2 * math.pi
+            
+            # Map theta to t
+            t = theta / (2 * math.pi)
+            
+            return t
         
-        # ------------------- light control -------------------
         def callback_light_forward(sender, app_data):
             
             if not dpg.is_item_focused("_primary_window"):
                 return
-
-            light = self.render_kwargs['dict_params']['env_light']
             
-            #Modify direct color
-            rgb = light.get_direct_color
-            rgb[0] += 0.1
-            rgb[1] += 0.1
-            rgb[2] += 0.1
-            light.set_direct_color(rgb)
+            # increment rotation
+            self.rotation_value = ((self.rotation_value + app_data[1])%3)/3
+            light_transform = caculate_rotation_transform(self.rotation_value)
+            light_tensor = torch.tensor(light_transform, dtype=torch.float32, device="cuda").reshape(3, 3)
             
-            print(light.env_shs_dc)
-            print(light.env_shs_dc[0][0].shape)
-            print(light.env_shs_rest[0][12].shape)
+            # update light transform
+            self.light.transform = light_tensor
+            self.render_kwargs['dict_params']['env_light'] = self.light
             
-            self.render_kwargs['dict_params']['env_light'] = light            
+            # update rendering
             self.need_update = True
         
         def callback_light_backward(sender, app_data):
-            #if not dpg.is_item_focused("_primary_window"):
-            #    return
-            
-            gaussians = self.render_kwargs['pc']
-            #transform = gaussians.transform <- this is none
-            print(gaussians._incidents_dc.shape)
-            print(gaussians._incidents_rest.shape)
-        
-        def callback_light_left(sender, app_data):
             if not dpg.is_item_focused("_primary_window"):
-                return
+               return
             
-            print(" u r pressing LEFT key")
-        
-        def callback_light_right(sender, app_data):
-            if not dpg.is_item_focused("_primary_window"):
-                return
+            # increment rotation
+            self.rotation_value = abs((self.rotation_value - app_data[1])%3)/3
+            light_transform = caculate_rotation_transform(self.rotation_value)
+            light_tensor = torch.tensor(light_transform, dtype=torch.float32, device="cuda").reshape(3, 3)
             
-            print(" u r pressing RIGHT key")
+            # update light transform
+            self.light.transform = light_tensor
+            self.render_kwargs['dict_params']['env_light'] = self.light
+            
+            # update rendering
+            self.need_update = True
         
-        def callback_shs_index(sender, app_data):
+        def callback_transform_indices(sender, app_data):
             if not dpg.is_item_focused("_primary_window"):
                 return
             
@@ -356,36 +394,144 @@ class GUI:
             
             index = app_data-48     # key pressed
             
-            light_transform = [
-            -0.6901941895484924,
-            -0.7236241698265076,
-            0.0,
-            0.7236241698265076,
-            -0.6901941895484924,
-            0.0,
-            0.0,
-            0.0,
-            1.0
+            light_transforms = [
+                [
+                    1.0,
+                    -0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                [
+                    0.8199881911277771,
+                    -0.5723804235458374,
+                    0.0,
+                    0.5723804235458374,
+                    0.8199881911277771,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                [
+                    0.32496097683906555,
+                    -0.9457274079322815,
+                    0.0,
+                    0.9457274079322815,
+                    0.32496097683906555,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                [
+                    -0.29499420523643494,
+                    -0.9554990530014038,
+                    0.0,
+                    0.9554990530014038,
+                    -0.29499420523643494,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                [
+                    -0.8015418648719788,
+                    -0.5979386568069458,
+                    0.0,
+                    0.5979386568069458,
+                    -0.8015418648719788,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                [
+                    -0.999944806098938,
+                    -0.010506805963814259,
+                    0.0,
+                    0.010506805963814259,
+                    -0.999944806098938,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                [
+                    -0.81392902135849,
+                    0.5809642672538757,
+                    0.0,
+                    -0.5809642672538757,
+                    -0.81392902135849,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                [
+                    -0.31500646471977234,
+                    0.949089527130127,
+                    0.0,
+                    -0.949089527130127,
+                    -0.31500646471977234,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                [
+                    0.3050171732902527,
+                    0.9523468613624573,
+                    0.0,
+                    -0.9523468613624573,
+                    0.3050171732902527,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                [
+                    0.8077800273895264,
+                    0.5894840359687805,
+                    0.0,
+                    -0.5894840359687805,
+                    0.8077800273895264,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                [
+                    1.0,
+                    2.4492937051703357e-16,
+                    0.0,
+                    -2.4492937051703357e-16,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ]
             ]
             
-            # light = EnvLight(path="env_map/composition.hdr", scale=1)#self.render_kwargs['dict_params']['env_light']
-            # print(light.transform)
-            # print(light)
-            # light_tensor = torch.tensor(light_transform, dtype=torch.float32, device="cuda").reshape(3, 3)
-            # print(light_tensor)
-            # light.transform = light_tensor
-            # print(light.transform)
+            light_tensor = torch.tensor(light_transforms[index], dtype=torch.float32, device="cuda").reshape(3, 3)
+            self.light.transform = light_tensor
             
-            light = self.render_kwargs['dict_params']['env_light']
-            light.modify_shs(index)
-            self.render_kwargs['dict_params']['env_light'] = light
+            self.render_kwargs['dict_params']['env_light'] = self.light
             
-            gaussians = self.render_kwargs['pc']
-            gaussians.modify_incidents(index)
-            self.render_kwargs['pc'] = gaussians
+            # light = self.render_kwargs['dict_params']['env_light']
+            # light.modify_shs(index)
+            
+            # gaussians = self.render_kwargs['pc']
+            # gaussians.modify_incidents(index)
+            # self.render_kwargs['pc'] = gaussians
             
             self.need_update = True
-        # -----------------------------------------------------
+        # ----------------------------------------------------------------------------------------------------------------------------
 
         with dpg.handler_registry():
             dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Left, callback=callback_camera_drag_rotate)
@@ -393,19 +539,19 @@ class GUI:
             dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Right, callback=callback_camera_drag_pan)
             dpg.add_key_down_handler(key=dpg.mvKey_Up, callback=callback_light_forward)
             dpg.add_key_down_handler(key=dpg.mvKey_Down, callback=callback_light_backward)
-            dpg.add_key_down_handler(key=dpg.mvKey_Left, callback=callback_light_left)
-            dpg.add_key_down_handler(key=dpg.mvKey_Right, callback=callback_light_right)
-            dpg.add_key_press_handler(key=dpg.mvKey_0, callback=callback_shs_index)
-            dpg.add_key_press_handler(key=dpg.mvKey_1, callback=callback_shs_index)
-            dpg.add_key_press_handler(key=dpg.mvKey_2, callback=callback_shs_index)
-            dpg.add_key_press_handler(key=dpg.mvKey_2, callback=callback_shs_index)
-            dpg.add_key_press_handler(key=dpg.mvKey_3, callback=callback_shs_index)
-            dpg.add_key_press_handler(key=dpg.mvKey_4, callback=callback_shs_index)
-            dpg.add_key_press_handler(key=dpg.mvKey_5, callback=callback_shs_index)
-            dpg.add_key_press_handler(key=dpg.mvKey_6, callback=callback_shs_index)
-            dpg.add_key_press_handler(key=dpg.mvKey_7, callback=callback_shs_index)
-            dpg.add_key_press_handler(key=dpg.mvKey_8, callback=callback_shs_index)
-            dpg.add_key_press_handler(key=dpg.mvKey_9, callback=callback_shs_index)
+            # dpg.add_key_down_handler(key=dpg.mvKey_Left, callback=callback_light_left)
+            # dpg.add_key_down_handler(key=dpg.mvKey_Right, callback=callback_light_right)
+            dpg.add_key_press_handler(key=dpg.mvKey_0, callback=callback_transform_indices)
+            dpg.add_key_press_handler(key=dpg.mvKey_1, callback=callback_transform_indices)
+            dpg.add_key_press_handler(key=dpg.mvKey_2, callback=callback_transform_indices)
+            dpg.add_key_press_handler(key=dpg.mvKey_2, callback=callback_transform_indices)
+            dpg.add_key_press_handler(key=dpg.mvKey_3, callback=callback_transform_indices)
+            dpg.add_key_press_handler(key=dpg.mvKey_4, callback=callback_transform_indices)
+            dpg.add_key_press_handler(key=dpg.mvKey_5, callback=callback_transform_indices)
+            dpg.add_key_press_handler(key=dpg.mvKey_6, callback=callback_transform_indices)
+            dpg.add_key_press_handler(key=dpg.mvKey_7, callback=callback_transform_indices)
+            dpg.add_key_press_handler(key=dpg.mvKey_8, callback=callback_transform_indices)
+            dpg.add_key_press_handler(key=dpg.mvKey_9, callback=callback_transform_indices)
 
         dpg.create_viewport(title='3D Gaussian Rendering Viewer', width=self.W, height=self.H, resizable=False)
 
@@ -431,7 +577,7 @@ if __name__ == '__main__':
     parser.add_argument("--iteration", default=-1, type=int)
     parser.add_argument("--skip_train", action="store_true")
     parser.add_argument("--skip_test", action="store_true")
-    parser.add_argument('-t', '--type', choices=['render','neilf'], default='render')
+    parser.add_argument('-t', '--type', choices=['render','neilf', 'neilf_composite_gui'], default='render')
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("-c", "--checkpoint", type=str, default=None,
                         help="resume from checkpoint")
