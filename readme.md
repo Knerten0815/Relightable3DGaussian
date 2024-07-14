@@ -3,7 +3,7 @@ This fork of [Relightable3DGaussian](https://github.com/NJU-3DV/Relightable3DGau
 ![Alt text](media/pbr_env.gif) ![Alt text](media/gui.gif)
 
 ### How to run
-1. Install the repository as described in the original [readme](#Relightable-3D-Gaussian:-Realtime-Point-Cloud-Relighting-with-BRDF-Decomposition-and-Ray-Tracing).
+1. Install the repository and train the gaussian models as described in the original [readme](#Relightable-3D-Gaussian:-Realtime-Point-Cloud-Relighting-with-BRDF-Decomposition-and-Ray-Tracing).
 2. Run the --gui command [(see readme)](###GUI) with ```-t neilf_composite_gui```. For example:
 ```
 python gui.py -m output/NeRF_Syn/lego/neilf -t neilf_composite_gui
