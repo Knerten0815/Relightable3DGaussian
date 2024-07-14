@@ -5,9 +5,9 @@ This fork of [Relightable3DGaussian](https://github.com/NJU-3DV/Relightable3DGau
 ### How to run
 1. Install the repository and train the gaussian models as described in the original [readme](#Relightable-3D-Gaussian:-Realtime-Point-Cloud-Relighting-with-BRDF-Decomposition-and-Ray-Tracing).
 2. Run gui.py with ```-t neilf_composite_gui```. For example:
-```
-python gui.py -m output/NeRF_Syn/lego/neilf -t neilf_composite_gui
-```
+    ```
+    python gui.py -m output/NeRF_Syn/lego/neilf -t neilf_composite_gui
+    ```
 1. use the up and down arrow keys to change the rotation of the environment light. Alternatiely you can use 0-9 keys for fixed positions.
 
 
