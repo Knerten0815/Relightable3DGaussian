@@ -1,4 +1,19 @@
-# Relightable 3D Gaussian: Real-time Point Cloud Relighting with BRDF Decomposition and Ray Tracing
+This fork of [Relightable3DGaussian](https://github.com/NJU-3DV/Relightable3DGaussian) adds the abitlity to rotate the environment light to the realtime GUI, as seen on their [project page](https://nju-3dv.github.io/projects/Relightable3DGaussian/):
+
+![Alt text](media/pbr_env.gif) ![Alt text](media/gui.gif)
+
+### How to run
+1. Install the repository as described in the original [readme](#Relightable-3D-Gaussian:-Realtime-Point-Cloud-Relighting-with-BRDF-Decomposition-and-Ray-Tracing).
+2. Run the --gui command [(see readme)](###GUI) with ```-t neilf_composite_gui```. For example:
+```
+python gui.py -m output/NeRF_Syn/lego/neilf -t neilf_composite_gui
+```
+1. use the up and down arrow keys to change the rotation of the environment light. Alternatiely you can use 0-9 keys for fixed positions.
+
+
+### Original Readme:
+
+# Relightable 3D Gaussian: Realtime Point Cloud Relighting with BRDF Decomposition and Ray Tracing
 
 ### <p align="center">[🌐Project Page](https://nju-3dv.github.io/projects/Relightable3DGaussian/) | [🖨️ArXiv](https://arxiv.org/abs/2311.16043) | [📰Paper](https://arxiv.org/abs/2311.16043)</p>
 
