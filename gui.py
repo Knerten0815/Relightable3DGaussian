@@ -119,6 +119,7 @@ class GUI:
         # ------------------- light control -------------------
         self.light = EnvLight(path="env_map/composition.hdr", scale=1)
         self.rotation_value = 0
+        self.elapsed_time = 0
         # -----------------------------------------------------
 
         self.render_buffer = np.zeros((self.W, self.H, 3), dtype=np.float32)
@@ -316,10 +317,6 @@ class GUI:
 
         # ----------------------------------------------------- light control ------------------------------------------------------
         def caculate_rotation_transform(t):
-            # Ensure t is within the range 0 < t < 1
-            if t <= 0 or t >= 1:
-                raise ValueError("t must be between 0 and 1 (exclusive)")
-            
             # Map t to an angle theta
             theta = 2 * math.pi * t
             
@@ -336,31 +333,21 @@ class GUI:
             
             return transform
 
-        def inverse_rotation(transform):
-            # Extract cos(theta) and sin(theta) from the transform matrix
-            cos_theta = transform[0]
-            sin_theta = transform[3]
+        def rotation_delta(app_data):
+            if(app_data[1] == 0):
+                self.elapsed_time = 0
             
-            # Calculate the angle theta using atan2
-            theta = math.atan2(sin_theta, cos_theta)
-            
-            # Ensure theta is positive (0 to 2*pi)
-            if theta < 0:
-                theta += 2 * math.pi
-            
-            # Map theta to t
-            t = theta / (2 * math.pi)
-            
-            return t
+            rotation_delta = app_data[1] - self.elapsed_time
+            self.elapsed_time = app_data[1]
+            return rotation_delta
         
         def callback_light_forward(sender, app_data):
-            
-            if not dpg.is_item_focused("_primary_window"):
-                return
-            
+            # if not dpg.is_item_focused("_primary_window"):
+            #     return
+
             # increment rotation
-            self.rotation_value = ((self.rotation_value + app_data[1])%3)/3
-            light_transform = caculate_rotation_transform(self.rotation_value)
+            self.rotation_value = self.rotation_value + rotation_delta(app_data)
+            light_transform = caculate_rotation_transform(self.rotation_value / 3)
             light_tensor = torch.tensor(light_transform, dtype=torch.float32, device="cuda").reshape(3, 3)
             
             # update light transform
@@ -371,12 +358,12 @@ class GUI:
             self.need_update = True
         
         def callback_light_backward(sender, app_data):
-            if not dpg.is_item_focused("_primary_window"):
-               return
-            
+            # if not dpg.is_item_focused("_primary_window"):
+            #     return
+
             # increment rotation
-            self.rotation_value = abs((self.rotation_value - app_data[1])%3)/3
-            light_transform = caculate_rotation_transform(self.rotation_value)
+            self.rotation_value = self.rotation_value - rotation_delta(app_data)
+            light_transform = caculate_rotation_transform(self.rotation_value / 3)
             light_tensor = torch.tensor(light_transform, dtype=torch.float32, device="cuda").reshape(3, 3)
             
             # update light transform
