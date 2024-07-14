@@ -105,9 +105,8 @@ def render_view(viewpoint_camera: Camera, pc: GaussianModel, pipe, bg_color: tor
             viewdirs[offset:offset+chunk_size],
             incidents[offset:offset+chunk_size],
             is_training, direct_light_env_light,
-            visibility[offset:offset+chunk_size], sample_num, bake,
-            visibility_precompute=None if bake else pc.get_visibility_tracing()[offset:offset+chunk_size])
-            # missing: sample_num=dict_params['sample_num'])
+            visibility[offset:offset+chunk_size], sample_num)
+            #, bake, visibility_precompute=None if bake else pc._visibility_tracing()[offset:offset+chunk_size])
         
         brdf_color_chunks.append(brdf_color)
         extra_results_chunks.append(extra_results)
