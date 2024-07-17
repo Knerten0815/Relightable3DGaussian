@@ -3,12 +3,16 @@ This fork of [Relightable3DGaussian](https://github.com/NJU-3DV/Relightable3DGau
 ![Alt text](media/pbr_env.gif) ![Alt text](media/gui.gif)
 
 ### How to run
-1. Install the repository and train the gaussian models as described in the original [readme](#Relightable-3D-Gaussian:-Realtime-Point-Cloud-Relighting-with-BRDF-Decomposition-and-Ray-Tracing).
-2. Run gui.py with ```-t neilf_composite_gui```. For example:
+1. Install the repository as described in the original readme.
+2. Download the trained models from [here](https://fhd-my.sharepoint.com/:u:/g/personal/kevin_zielke_study_hs-duesseldorf_de/EYwvd2uq24VNrCuRdo2pQ-cBS3STVDdzfOR65LY-Asd2cQ?e=hQaSsx). Copy the folders ```datasets```, ```output``` and ```point``` into the root of the repository.
+   - If this link isn't valid anymore, my university account likely expired. You can also train the models yourself, as described in the original readme.
+3. Run gui.py with ```-t neilf_composite_gui```. For example:
+
     ```
     python gui.py -m output/NeRF_Syn/lego/neilf -t neilf_composite_gui
     ```
-1. use the up and down arrow keys to change the rotation of the environment light. Alternatiely you can use 0-9 keys for fixed positions.
+   - change the ```lego``` part in the command to ```ficus```, ```ship``` or any other folder name in ```output/NeRF_Syn``` to load a different model.
+4. Use the up and down arrow keys to change the rotation of the environment light. Alternatiely you can use 0-9 keys for fixed positions.
 
 
 ### Original Readme:
