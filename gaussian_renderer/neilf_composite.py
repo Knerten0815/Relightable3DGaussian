@@ -10,6 +10,39 @@ from utils.sh_utils import eval_sh, eval_sh_coef
 from utils.graphics_utils import fibonacci_sphere_sampling
 from .r3dg_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 
+from bvh import RayTracer
+from tqdm import tqdm
+
+def update_visibility(gaussians, is_bake=True, sample_num=24):
+    if is_bake:
+        gaussians.finetune_visibility(iterations=1000)
+    else:
+        raytracer = RayTracer(gaussians.get_xyz, gaussians.get_scaling,
+                              gaussians.get_rotation)
+        gaussians_xyz = gaussians.get_xyz
+        gaussians_inverse_covariance = gaussians.get_inverse_covariance()
+        gaussians_opacity = gaussians.get_opacity[:, 0]
+        gaussians_normal = gaussians.get_normal
+        incident_visibility_results = []
+        chunk_size = gaussians_xyz.shape[0] // ((sample_num - 1) // 24 + 1)
+        for offset in tqdm(range(0, gaussians_xyz.shape[0], chunk_size),
+                           "Precompute raytracing visibility with {} samples".format(sample_num)):
+            incident_dirs, _ = sample_incident_rays(gaussians_normal[offset:offset + chunk_size], False,
+                                                    sample_num)
+            trace_results = raytracer.trace_visibility(
+                gaussians_xyz[offset:offset + chunk_size, None].expand_as(incident_dirs),
+                incident_dirs,
+                gaussians_xyz,
+                gaussians_inverse_covariance,
+                gaussians_opacity,
+                gaussians_normal)
+            incident_visibility = trace_results["visibility"]
+            incident_visibility_results.append(incident_visibility)
+        incident_visibility_result = torch.cat(incident_visibility_results, dim=0)
+        gaussians._visibility_tracing = incident_visibility_result
+
+    return gaussians
+
 
 def render_view(viewpoint_camera: Camera, pc: GaussianModel, pipe, bg_color: torch.Tensor,
                 scaling_modifier=1.0, override_color=None, is_training=False, 

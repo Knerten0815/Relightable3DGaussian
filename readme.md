@@ -6,10 +6,10 @@ This fork of [Relightable3DGaussian](https://github.com/NJU-3DV/Relightable3DGau
 1. Install the repository as described in the original readme.
 2. Download the trained models from [here](https://fhd-my.sharepoint.com/:u:/g/personal/kevin_zielke_study_hs-duesseldorf_de/EYwvd2uq24VNrCuRdo2pQ-cBS3STVDdzfOR65LY-Asd2cQ?e=hQaSsx). Copy the folders ```datasets```, ```output``` and ```point``` into the root of the repository.
    - If this link isn't valid anymore, my university account likely expired. You can also train the models yourself, as described in the original readme.
-3. Run gui.py with ```-t neilf_gui```. For example:
+3. Run gui.py with ```-t neilf_composite```. For example:
 
     ```
-    python gui.py -m output/NeRF_Syn/lego/neilf -t neilf_gui --sample_num=24
+    python gui.py -m output/NeRF_Syn/lego/neilf -t neilf_composite --sample_num=24
     ```
    - change the ```lego``` part in the command to ```ficus```, ```ship``` or any other folder name in ```output/NeRF_Syn``` to load a different model.
    - reduce ```sample_num``` to reduce the raytracing samples and speed up rendering. For reference: The original paper states 33 FPS with 24 samples on a NVIDIA GeForce RTX 3090 GPU for the composite scene seen above (but this animation was actually rendered offline with 384 samples in 0,018 FPS). My GTX 1080 Ti achieves 25-28 FPS with mere 6 samples on the single ficus model, while my GTX 1050 mobile achieves 3-8 FPS with the same model and samples🏎️.
