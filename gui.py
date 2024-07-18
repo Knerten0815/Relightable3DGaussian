@@ -342,9 +342,9 @@ class GUI:
             self.elapsed_time = app_data[1]
             return rotation_delta
         
-        def callback_light_forward(sender, app_data):
-            # if not dpg.is_item_focused("_primary_window"):
-            #     return
+        def callback_rotate_light_left(sender, app_data):
+            if not dpg.is_item_focused("_primary_window"):
+                return
 
             # increment rotation
             self.rotation_value = self.rotation_value + rotation_delta(app_data)
@@ -358,9 +358,9 @@ class GUI:
             # update rendering
             self.need_update = True
         
-        def callback_light_backward(sender, app_data):
-            # if not dpg.is_item_focused("_primary_window"):
-            #     return
+        def callback_rotate_light_right(sender, app_data):
+            if not dpg.is_item_focused("_primary_window"):
+                return
 
             # increment rotation
             self.rotation_value = self.rotation_value - rotation_delta(app_data)
@@ -373,166 +373,14 @@ class GUI:
             
             # update rendering
             self.need_update = True
-        
-        def callback_transform_indices(sender, app_data):
-            if not dpg.is_item_focused("_primary_window"):
-                return
-            
-            self.need_update = False
-            
-            index = app_data-48     # key pressed
-            
-            light_transforms = [
-                [
-                    1.0,
-                    -0.0,
-                    0.0,
-                    0.0,
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                [
-                    0.8199881911277771,
-                    -0.5723804235458374,
-                    0.0,
-                    0.5723804235458374,
-                    0.8199881911277771,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                [
-                    0.32496097683906555,
-                    -0.9457274079322815,
-                    0.0,
-                    0.9457274079322815,
-                    0.32496097683906555,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                [
-                    -0.29499420523643494,
-                    -0.9554990530014038,
-                    0.0,
-                    0.9554990530014038,
-                    -0.29499420523643494,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                [
-                    -0.8015418648719788,
-                    -0.5979386568069458,
-                    0.0,
-                    0.5979386568069458,
-                    -0.8015418648719788,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                [
-                    -0.999944806098938,
-                    -0.010506805963814259,
-                    0.0,
-                    0.010506805963814259,
-                    -0.999944806098938,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                [
-                    -0.81392902135849,
-                    0.5809642672538757,
-                    0.0,
-                    -0.5809642672538757,
-                    -0.81392902135849,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                [
-                    -0.31500646471977234,
-                    0.949089527130127,
-                    0.0,
-                    -0.949089527130127,
-                    -0.31500646471977234,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                [
-                    0.3050171732902527,
-                    0.9523468613624573,
-                    0.0,
-                    -0.9523468613624573,
-                    0.3050171732902527,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                [
-                    0.8077800273895264,
-                    0.5894840359687805,
-                    0.0,
-                    -0.5894840359687805,
-                    0.8077800273895264,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                [
-                    1.0,
-                    2.4492937051703357e-16,
-                    0.0,
-                    -2.4492937051703357e-16,
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ]
-            ]
-            
-            light_tensor = torch.tensor(light_transforms[index], dtype=torch.float32, device="cuda").reshape(3, 3)
-            self.light.transform = light_tensor
-            
-            self.render_kwargs['dict_params']['env_light'] = self.light
-            
-            self.need_update = True
         # ----------------------------------------------------------------------------------------------------------------------------
 
         with dpg.handler_registry():
             dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Left, callback=callback_camera_drag_rotate)
             dpg.add_mouse_wheel_handler(callback=callback_camera_wheel_scale)
             dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Right, callback=callback_camera_drag_pan)
-            dpg.add_key_down_handler(key=dpg.mvKey_Up, callback=callback_light_forward)
-            dpg.add_key_down_handler(key=dpg.mvKey_Down, callback=callback_light_backward)
-            # dpg.add_key_down_handler(key=dpg.mvKey_Left, callback=callback_light_left)
-            # dpg.add_key_down_handler(key=dpg.mvKey_Right, callback=callback_light_right)
-            dpg.add_key_press_handler(key=dpg.mvKey_0, callback=callback_transform_indices)
-            dpg.add_key_press_handler(key=dpg.mvKey_1, callback=callback_transform_indices)
-            dpg.add_key_press_handler(key=dpg.mvKey_2, callback=callback_transform_indices)
-            dpg.add_key_press_handler(key=dpg.mvKey_2, callback=callback_transform_indices)
-            dpg.add_key_press_handler(key=dpg.mvKey_3, callback=callback_transform_indices)
-            dpg.add_key_press_handler(key=dpg.mvKey_4, callback=callback_transform_indices)
-            dpg.add_key_press_handler(key=dpg.mvKey_5, callback=callback_transform_indices)
-            dpg.add_key_press_handler(key=dpg.mvKey_6, callback=callback_transform_indices)
-            dpg.add_key_press_handler(key=dpg.mvKey_7, callback=callback_transform_indices)
-            dpg.add_key_press_handler(key=dpg.mvKey_8, callback=callback_transform_indices)
-            dpg.add_key_press_handler(key=dpg.mvKey_9, callback=callback_transform_indices)
+            dpg.add_key_down_handler(key=dpg.mvKey_Right, callback=callback_rotate_light_left)
+            dpg.add_key_down_handler(key=dpg.mvKey_Left, callback=callback_rotate_light_right)
 
         dpg.create_viewport(title='3D Gaussian Rendering Viewer', width=self.W, height=self.H, resizable=False)
 
