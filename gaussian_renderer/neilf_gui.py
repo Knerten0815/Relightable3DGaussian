@@ -220,7 +220,7 @@ def render_view(viewpoint_camera: Camera, pc: GaussianModel, pipe, bg_color: tor
     return results
 
 
-def render_neilf_composite_gui(viewpoint_camera: Camera, pc: GaussianModel, pipe, bg_color: torch.Tensor,
+def render_neilf_gui(viewpoint_camera: Camera, pc: GaussianModel, pipe, bg_color: torch.Tensor,
                  scaling_modifier=1.0, override_color=None, opt: OptimizationParams = False,
                  is_training=False, dict_params=None, bake=False):
     """

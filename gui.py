@@ -20,7 +20,7 @@ from utils.graphics_utils import focal2fov, hdr2ldr
 from scene.gamma_trans import LearningGammaTransform
 
 # ------------------- light control -------------------
-from gaussian_renderer.neilf_composite_gui import update_visibility
+from gaussian_renderer.neilf_gui import update_visibility
 from scene.envmap import EnvLight
 import math
 # -----------------------------------------------------
@@ -558,7 +558,7 @@ if __name__ == '__main__':
     parser.add_argument("--iteration", default=-1, type=int)
     parser.add_argument("--skip_train", action="store_true")
     parser.add_argument("--skip_test", action="store_true")
-    parser.add_argument('-t', '--type', choices=['render','neilf', 'neilf_composite_gui'], default='render')
+    parser.add_argument('-t', '--type', choices=['render','neilf', 'neilf_gui'], default='render')
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("-c", "--checkpoint", type=str, default=None,
                         help="resume from checkpoint")
@@ -640,7 +640,7 @@ if __name__ == '__main__':
         ])
     center = gaussians.get_xyz.mean(dim=0).detach().cpu().numpy()
     
-    if(args.type == 'neilf_composite_gui'):
+    if(args.type == 'neilf_gui'):
         gaussians = update_visibility(gaussians, is_bake=False, sample_num=pipe.sample_num)
 
     render_kwargs = {

@@ -58,7 +58,7 @@ class GaussianModel:
         self.default_incidents = None
         self._visibility_tracing = None
         self.render_type = render_type
-        self.use_pbr = render_type in ['neilf', 'neilf_composite_gui']
+        self.use_pbr = render_type in ['neilf', 'neilf_gui']
         self.active_sh_degree = 0
         self.max_sh_degree = sh_degree
         self._xyz = torch.empty(0)
