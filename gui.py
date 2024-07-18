@@ -341,38 +341,34 @@ class GUI:
             rotation_delta = app_data[1] - self.elapsed_time
             self.elapsed_time = app_data[1]
             return rotation_delta
-        
+
+        def update_light_transform():
+            # increment rotation
+            light_transform = caculate_rotation_transform(self.rotation_value / 3)
+            light_tensor = torch.tensor(light_transform, dtype=torch.float32, device="cuda").reshape(3, 3)
+            
+            # update light transform
+            self.light.transform = light_tensor
+            self.render_kwargs['dict_params']['env_light'] = self.light
+            
+            # update rendering
+            self.need_update = True
+
         def callback_rotate_light_left(sender, app_data):
             if not dpg.is_item_focused("_primary_window"):
                 return
 
-            # increment rotation
-            self.rotation_value = self.rotation_value + rotation_delta(app_data)
-            light_transform = caculate_rotation_transform(self.rotation_value / 3)
-            light_tensor = torch.tensor(light_transform, dtype=torch.float32, device="cuda").reshape(3, 3)
-            
-            # update light transform
-            self.light.transform = light_tensor
-            self.render_kwargs['dict_params']['env_light'] = self.light
-            
-            # update rendering
-            self.need_update = True
-        
+            # increase rotation
+            self.rotation_value = self.rotation_value + rotation_delta(app_data)            
+            update_light_transform()
+
         def callback_rotate_light_right(sender, app_data):
             if not dpg.is_item_focused("_primary_window"):
                 return
 
-            # increment rotation
-            self.rotation_value = self.rotation_value - rotation_delta(app_data)
-            light_transform = caculate_rotation_transform(self.rotation_value / 3)
-            light_tensor = torch.tensor(light_transform, dtype=torch.float32, device="cuda").reshape(3, 3)
-            
-            # update light transform
-            self.light.transform = light_tensor
-            self.render_kwargs['dict_params']['env_light'] = self.light
-            
-            # update rendering
-            self.need_update = True
+            # decrease rotation
+            self.rotation_value = self.rotation_value - rotation_delta(app_data)            
+            update_light_transform()
         # ----------------------------------------------------------------------------------------------------------------------------
 
         with dpg.handler_registry():
