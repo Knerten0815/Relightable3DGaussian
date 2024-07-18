@@ -56,6 +56,7 @@ class GaussianModel:
 
     def __init__(self, sh_degree: int, render_type='render'):
         self.default_incidents = None
+        self._visibility_tracing = None
         self.render_type = render_type
         self.use_pbr = render_type in ['neilf', 'neilf_composite_gui']
         self.active_sh_degree = 0

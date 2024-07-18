@@ -20,6 +20,7 @@ from utils.graphics_utils import focal2fov, hdr2ldr
 from scene.gamma_trans import LearningGammaTransform
 
 # ------------------- light control -------------------
+from gaussian_renderer.neilf_composite_gui import update_visibility
 from scene.envmap import EnvLight
 import math
 # -----------------------------------------------------
@@ -510,13 +511,6 @@ class GUI:
             
             self.render_kwargs['dict_params']['env_light'] = self.light
             
-            # light = self.render_kwargs['dict_params']['env_light']
-            # light.modify_shs(index)
-            
-            # gaussians = self.render_kwargs['pc']
-            # gaussians.modify_incidents(index)
-            # self.render_kwargs['pc'] = gaussians
-            
             self.need_update = True
         # ----------------------------------------------------------------------------------------------------------------------------
 
@@ -646,6 +640,9 @@ if __name__ == '__main__':
         ])
     center = gaussians.get_xyz.mean(dim=0).detach().cpu().numpy()
     
+    if(args.type == 'neilf_composite_gui'):
+        gaussians = update_visibility(gaussians, is_bake=False, sample_num=pipe.sample_num)
+
     render_kwargs = {
         "pc": gaussians,
         "pipe": pipe,

@@ -10,6 +10,40 @@ from utils.sh_utils import eval_sh, eval_sh_coef
 from utils.graphics_utils import fibonacci_sphere_sampling
 from .r3dg_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 
+from bvh import RayTracer
+from tqdm import tqdm
+
+
+def update_visibility(gaussians, is_bake=True, sample_num=24):
+    if is_bake:
+        gaussians.finetune_visibility(iterations=1000)
+    else:
+        raytracer = RayTracer(gaussians.get_xyz, gaussians.get_scaling,
+                              gaussians.get_rotation)
+        gaussians_xyz = gaussians.get_xyz
+        gaussians_inverse_covariance = gaussians.get_inverse_covariance()
+        gaussians_opacity = gaussians.get_opacity[:, 0]
+        gaussians_normal = gaussians.get_normal
+        incident_visibility_results = []
+        chunk_size = gaussians_xyz.shape[0] // ((sample_num - 1) // 24 + 1)
+        for offset in tqdm(range(0, gaussians_xyz.shape[0], chunk_size),
+                           "Precompute raytracing visibility"):
+            incident_dirs, _ = sample_incident_rays(gaussians_normal[offset:offset + chunk_size], False,
+                                                    sample_num)
+            trace_results = raytracer.trace_visibility(
+                gaussians_xyz[offset:offset + chunk_size, None].expand_as(incident_dirs),
+                incident_dirs,
+                gaussians_xyz,
+                gaussians_inverse_covariance,
+                gaussians_opacity,
+                gaussians_normal)
+            incident_visibility = trace_results["visibility"]
+            incident_visibility_results.append(incident_visibility)
+        incident_visibility_result = torch.cat(incident_visibility_results, dim=0)
+        gaussians._visibility_tracing = incident_visibility_result
+
+    print("Visibility updated. Sample Number: ", sample_num)
+    return gaussians
 
 def render_view(viewpoint_camera: Camera, pc: GaussianModel, pipe, bg_color: torch.Tensor,
                 scaling_modifier=1.0, override_color=None, is_training=False, 
@@ -105,8 +139,8 @@ def render_view(viewpoint_camera: Camera, pc: GaussianModel, pipe, bg_color: tor
             viewdirs[offset:offset+chunk_size],
             incidents[offset:offset+chunk_size],
             is_training, direct_light_env_light,
-            visibility[offset:offset+chunk_size], sample_num)
-            #, bake, visibility_precompute=None if bake else pc._visibility_tracing()[offset:offset+chunk_size])
+            visibility[offset:offset+chunk_size], sample_num, bake=bake,
+            visibility_precompute=None if bake else pc._visibility_tracing[offset:offset+chunk_size])
         
         brdf_color_chunks.append(brdf_color)
         extra_results_chunks.append(extra_results)
@@ -229,16 +263,14 @@ def rendering_equation_python(base_color, roughness, metallic, normals, viewdirs
     else:
         global_incident_lights = torch.zeros_like(local_incident_lights, requires_grad=False)
 
-    incident_visibility = torch.clamp(
+    if bake:
+        incident_visibility = torch.clamp(
             (incident_dirs_coef[..., :shs_visibility.shape[-1]] * shs_visibility).sum(-1) + 0.5, 0, 1)
-    # if bake:
-    #     incident_visibility = torch.clamp(
-    #         (incident_dirs_coef[..., :shs_visibility.shape[-1]] * shs_visibility).sum(-1) + 0.5, 0, 1)
-    # else:
-    #     if visibility_precompute is not None:
-    #         incident_visibility = torch.zeros_like(global_incident_lights) #visibility_precompute
-    #     else:
-    #         raise ValueError("visibility should be pre-computed.")
+    else:
+        if visibility_precompute is not None:
+            incident_visibility = visibility_precompute
+        else:
+            raise ValueError("visibility should be pre-computed.")
 
     global_incident_lights = global_incident_lights * incident_visibility
     incident_lights = local_incident_lights + global_incident_lights
