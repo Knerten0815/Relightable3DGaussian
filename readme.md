@@ -12,7 +12,7 @@ This fork of [Relightable3DGaussian](https://github.com/NJU-3DV/Relightable3DGau
     python gui.py -m output/NeRF_Syn/lego/neilf -t neilf_composite_gui --sample_num=24
     ```
    - change the ```lego``` part in the command to ```ficus```, ```ship``` or any other folder name in ```output/NeRF_Syn``` to load a different model.
-   - reduce ```sample_num``` to speed up the rendering. For reference: The original paper states 33 FPS with 24 samples on a NVIDIA GeForce RTX 3090 GPU for the composite scene seen above. My GTX 1080 Ti achieves 25-28 FPS with mere 6 samples on the single ficus model, while my GTX 1050 mobile achieves 3-8 FPS with 6 samples on the same model 🏎️.
+   - reduce ```sample_num``` to reduce the raytracing samples and speed up rendering. For reference: The original paper states 33 FPS with 24 samples on a NVIDIA GeForce RTX 3090 GPU for the composite scene seen above (but this animation was actually rendered offline with 384 samples in 0,018 FPS). My GTX 1080 Ti achieves 25-28 FPS with mere 6 samples on the single ficus model, while my GTX 1050 mobile achieves 3-8 FPS with the same model and samples🏎️.
 4. Use the up and down arrow keys to change the rotation of the environment light. Alternatiely you can use 0-9 keys for fixed positions.
 
 
