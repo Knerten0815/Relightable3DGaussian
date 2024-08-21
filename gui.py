@@ -1,6 +1,7 @@
 import glob
 import json
 import os
+import math
 import torchvision.transforms
 import dearpygui.dearpygui as dpg
 from scipy.spatial.transform import Rotation as R
@@ -16,12 +17,11 @@ from argparse import ArgumentParser
 from arguments import ModelParams, PipelineParams
 from utils.system_utils import searchForMaxIteration
 from scene.direct_light_map import DirectLightMap
+from scene.envmap import EnvLight
 from utils.graphics_utils import focal2fov, rgb_to_srgb
-
 
 def safe_normalize(x, eps=1e-20):
     return x / torch.sqrt(torch.clamp(torch.sum(x * x, -1, keepdim=True), min=eps))
-
 
 class OrbitCamera:
     def __init__(self, W, H, fovy=60, near=0.1, far=10, rot=None, translate=None, center=None):
@@ -101,6 +101,10 @@ class GUI:
         self.render_kwargs = render_kwargs
         
         self.cam = OrbitCamera(self.W, self.H, fovy=fovy * 180 / np.pi, rot=rot, translate=translate, center=center)
+
+        self.light = render_kwargs['dict_params']["env_light"]
+        self.rotation_values = [0,0,0]
+        self.elapsed_time = 0
 
         self.render_buffer = np.zeros((self.W, self.H, 3), dtype=np.float32)
         self.resize_fn = torchvision.transforms.Resize((self.H, self.W), antialias=True)
@@ -290,11 +294,113 @@ class GUI:
 
             if self.debug:
                 dpg.set_value("_log_pose", str(self.cam.pose))
+        
+        def calculate_rotation(t, axis):
+            # Map t to an angle theta
+            theta = 2 * math.pi * t
+            
+            # Calculate the elements of the rotation matrix
+            cos_theta = math.cos(theta)
+            sin_theta = math.sin(theta)
+            
+            # Construct the rotation matrix
+            if(axis == 0):  #jaw rotation
+                transform = [
+                    cos_theta, -sin_theta, 0.0,
+                    sin_theta, cos_theta, 0.0,
+                    0.0, 0.0, 1.0
+                ]                
+            elif(axis == 1):  #pitch rotation
+                transform = [
+                    1.0, 0.0, 0.0,
+                    0.0, cos_theta, -sin_theta,
+                    0.0, sin_theta, cos_theta
+                ]
+            else:             #roll rotation
+                transform = [
+                    cos_theta, 0.0, sin_theta,
+                    0.0, 1.0, 0.0,
+                    -sin_theta, 0.0, cos_theta
+                ]
+            return transform
+
+        def rotation_delta(app_data):
+            if(app_data[1] == 0):
+                self.elapsed_time = 0
+            
+            rotation_delta = app_data[1] - self.elapsed_time
+            self.elapsed_time = app_data[1]
+            return rotation_delta
+        
+        def multiply_matrices(m1, m2):
+            result = [0.0] * 9
+            for i in range(3):
+                for j in range(3):
+                    result[i * 3 + j] = sum(m1[i * 3 + k] * m2[k * 3 + j] for k in range(3))
+            return result
+
+        def update_light_transform(axis, rotation_delta):
+            self.rotation_values[axis] += rotation_delta
+
+            # Calculate the combined rotation matrix
+            combined_transform = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+            for i in range(3):
+                rotation_matrix = calculate_rotation(self.rotation_values[i] / 3, i)
+                combined_transform = multiply_matrices(combined_transform, rotation_matrix)
+
+            light_tensor = torch.tensor(combined_transform, dtype=torch.float32, device="cuda").reshape(3, 3)
+            
+            # update light transform
+            self.light.transform = light_tensor
+            self.render_kwargs['dict_params']['env_light'] = self.light
+            
+            # update rendering
+            self.need_update = True
+
+        def callback_increase_jaw_rotation(sender, app_data):
+            if not dpg.is_item_focused("_primary_window"):
+                return
+            update_light_transform(axis=0, rotation_delta=rotation_delta(app_data))
+
+        def callback_decrease_jaw_rotation(sender, app_data):
+            if not dpg.is_item_focused("_primary_window"):
+                return
+            update_light_transform(axis=0, rotation_delta=rotation_delta(app_data) * -1)
+        
+        def callback_increase_pitch_rotation(sender, app_data):
+            if not dpg.is_item_focused("_primary_window"):
+                return
+            update_light_transform(axis=1, rotation_delta=rotation_delta(app_data))
+
+        def callback_decrease_pitch_rotation(sender, app_data):
+            if not dpg.is_item_focused("_primary_window"):
+                return
+            update_light_transform(axis=1, rotation_delta=rotation_delta(app_data) * -1)
+        
+        def callback_increase_roll_rotation(sender, app_data):
+            if not dpg.is_item_focused("_primary_window"):
+                return
+            update_light_transform(axis=2, rotation_delta=rotation_delta(app_data))
+
+        def callback_decrease_roll_rotation(sender, app_data):
+            if not dpg.is_item_focused("_primary_window"):
+                return
+            update_light_transform(axis=2, rotation_delta=rotation_delta(app_data) * -1)
 
         with dpg.handler_registry():
             dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Left, callback=callback_camera_drag_rotate)
             dpg.add_mouse_wheel_handler(callback=callback_camera_wheel_scale)
             dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Right, callback=callback_camera_drag_pan)
+            dpg.add_key_down_handler(key=dpg.mvKey_Right, callback=callback_increase_jaw_rotation)
+            dpg.add_key_down_handler(key=dpg.mvKey_Left, callback=callback_decrease_jaw_rotation)
+            dpg.add_key_down_handler(key=dpg.mvKey_Up, callback=callback_decrease_pitch_rotation)
+            dpg.add_key_down_handler(key=dpg.mvKey_Down, callback=callback_increase_pitch_rotation)
+            dpg.add_key_down_handler(key=dpg.mvKey_D, callback=callback_increase_jaw_rotation)
+            dpg.add_key_down_handler(key=dpg.mvKey_A, callback=callback_decrease_jaw_rotation)
+            dpg.add_key_down_handler(key=dpg.mvKey_W, callback=callback_decrease_pitch_rotation)
+            dpg.add_key_down_handler(key=dpg.mvKey_S, callback=callback_increase_pitch_rotation)
+            dpg.add_key_down_handler(key=dpg.mvKey_E, callback=callback_increase_roll_rotation)
+            dpg.add_key_down_handler(key=dpg.mvKey_Q, callback=callback_decrease_roll_rotation)
 
         dpg.create_viewport(title='3D Gaussian Rendering Viewer', width=self.W, height=self.H, resizable=False)
 
@@ -312,6 +418,17 @@ class GUI:
         dpg.show_viewport()
 
 
+def use_direct_light_map(checkpoint, dataset, pbr_kwargs):
+    env_checkpoint = checkpoint.split("chkpnt")[0] + "env_light_chkpnt" + checkpoint.split("chkpnt")[-1]
+    if os.path.exists(env_checkpoint):
+        env_light = DirectLightMap(dataset.global_shs_degree)
+        env_light.create_from_ckpt(env_checkpoint, restore_optimizer=False)
+
+        pbr_kwargs["env_light"] = env_light
+    else:
+        print("cannot find env_light_checkpoint at {}, and env light will be ignore.".format(env_checkpoint))
+
+
 if __name__ == '__main__':
     # Set up command line argument parser
     parser = ArgumentParser(description="Testing script parameters")
@@ -326,6 +443,7 @@ if __name__ == '__main__':
                         help="resume from checkpoint")
     parser.add_argument("--scale", type=int, default=1)
     parser.add_argument('--hdr2ldr', action="store_true")
+    parser.add_argument("-env", "--env_map", type=str, default=None,)
 
     args = parser.parse_args()
     print("Rendering " + args.model_path)
@@ -347,15 +465,16 @@ if __name__ == '__main__':
             checkpoint = sorted(checkpoints, key=lambda x: int(x.split("chkpnt")[-1].split(".")[0]))[-1]
         (model_params, first_iter) = torch.load(checkpoint)
         gaussians.create_from_ckpt(checkpoint, restore_optimizer=False)
-
-        env_checkpoint = checkpoint.split("chkpnt")[0] + "env_light_chkpnt" + checkpoint.split("chkpnt")[-1]
-        if os.path.exists(env_checkpoint):
-            env_light = DirectLightMap(dataset.global_shs_degree)
-            env_light.create_from_ckpt(env_checkpoint, restore_optimizer=False)
-
-            pbr_kwargs["env_light"] = env_light
+        
+        if(args.env_map is not None):
+            try:
+                env_light = EnvLight(path=args.env_map, scale=1)
+                pbr_kwargs["env_light"] = env_light
+            except:
+                print("cannot find env_light at {}. Using DirectLightMap instead.".format(args.env_light))
+                use_direct_light_map(checkpoint, dataset, pbr_kwargs)
         else:
-            print("cannot find env_light_checkpoint at {}, and env light will be ignore.".format(env_checkpoint))
+            use_direct_light_map(checkpoint, dataset, pbr_kwargs)
     else:
         if args.iteration == -1:
             loaded_iter = searchForMaxIteration(os.path.join(args.model_path, "point_cloud"))
@@ -388,6 +507,14 @@ if __name__ == '__main__':
         ])
     center = gaussians.get_xyz.mean(dim=0).detach().cpu().numpy()
     
+    if(args.type == 'neilf'):
+        gaussians.update_visibility(sample_num=pipe.sample_num)
+    
+    if(args.env_map == None):
+        mode = 'pbr'
+    else:
+        mode = 'pbr_env'
+    
     render_kwargs = {
         "pc": gaussians,
         "pipe": pipe,
@@ -399,7 +526,7 @@ if __name__ == '__main__':
     windows = GUI(H, W, fovy,
                   c2w=c2w, center=center,
                   render_fn=render_fn, render_kwargs=render_kwargs,
-                  mode='pbr')
+                  mode=mode)
 
     while True:
         windows.render()
